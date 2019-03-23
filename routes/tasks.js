@@ -1,8 +1,6 @@
 var express = require('express'),
 	router = express.Router(),
 	tasks = require('../models/taskSchema');
-mongoose = require('mongoose');
-
 
 router.get('/', (req, res) => {
 	var where  = req.query.where ? JSON.parse(req.query.where) : {},
@@ -11,9 +9,14 @@ router.get('/', (req, res) => {
 		skip   = req.query.skip ? JSON.parseInt(req.query.skip) : 0;
 
 	var query  = tasks.find({}).where(where).sort(sort).select(select).skip(skip);
-		query  = req.query.limit ? query.limit(parseInt(req.query.limit)) : query;
-		query  = req.query.count === 'true' ? query.count() : query;
+		
+	if(req.query.limit) {
+		query = query.limit(parseInt(req.query.limit));
+	}	
 
+	if(req.query.count === 'true') {
+		query = query.count();
+	}
 		// console.log(query);
 	query.exec({}, (err, res_tasks) => {
 		if (err) {
@@ -21,12 +24,13 @@ router.get('/', (req, res) => {
 				message: 'Server Error',
 				data: []
 			});
-		} else {
-			res.status(200).send({
-				message: 'OK',
-				data: res_tasks,
-			})
-		}
+			return;
+		} 
+		res.status(200).send({
+			message: 'OK',
+			data: res_tasks,
+		})
+		
 	})
 });
 
@@ -37,90 +41,91 @@ router.post('/', function (req, res) {
 				message: err,
 				data: []
 			});
-		} else {
-			res.status(201).send({
-				message: 'OK',
-				data: newtask,
-			})
-		}
+			return;
+		} 
+		res.status(201).send({
+			message: 'OK',
+			data: newtask,
+		})
+		
     })
 });
 
 router.get('/:id', function(req, res) {
-	tasks.findOne({_id: req.params.id}).exec(function(err, task) {
+	tasks.findOne({_id: req.params.id}, function(err, task) {
 		if(err) {
 			res.status(500).send({
 				message: err,
 				data: []
 			});
-		} else {
-			if(!task) {
-				res.status(404).send({
-					message: 'Task Not Found',
-					data: []
-				});
-			} else {
-				res.status(200).send({
-					message: 'OK',
-					data: task
-				})
-			}
+			return;
+		} 
+		if(!task) {
+			res.status(404).send({
+				message: 'Task Not Found',
+				data: []
+			});
+			return;
 		}
+		res.status(200).send({
+			message: 'OK',
+			data: task
+		})
 	})
 });
 
 router.put('/:id', function(req, res) {
-	tasks.findOne({_id: req.params.id}).exec((err, res_tasks) => {
+	tasks.findOne({_id: req.params.id}, (err, res_tasks) => {
 		if(err) {
 			res.status(500).send({
 				message: err,
 				data: {}
 			});
-		} else {
-			if(!res_tasks) {
-				res.status(404).send({
-					message: 'Task Not Found',
-					data: []
+			return;
+		} 
+		if(!res_tasks) {
+			res.status(404).send({
+				message: 'Task Not Found',
+				data: []
+			});
+			return;
+		}
+
+		tasks.findOneAndUpdate({_id: req.params.id}, {$set: req.body}, {new: true}, (err, task) => {
+			if(err) {
+				res.status(500).send({
+					message: err,
+					data: {}
 				});
 			} else {
-					tasks.findOneAndUpdate({_id: req.params.id}, {$set: req.body}, {new: true}, (err, task) => {
-						if(err) {
-							res.status(500).send({
-								message: err,
-								data: {}
-							});
-						} else {
-							res.status(200).send({
-								message: 'Task Information Updated',
-								data: task
-							});
-						}
-					});
-					
-				}
+				res.status(200).send({
+					message: 'Task Updated',
+					data: task
+				});
 			}
-		})
+		});			
+	})
 });
 
 router.delete('/:id', function(req, res) {
-	tasks.deleteOne({_id: req.params.id}).exec(function(err, task) {
+	tasks.deleteOne({_id: req.params.id}, function(err, task) {
 		if(err) {
 			res.status(500).send({
 				message: err,
 				data: []
 			});
+			return;
+		} 
+		if(task.n === 0) {
+			res.status(404).send({
+				message: 'Task Not Found',
+				data: []
+			});
 		} else {
-			if(task.n === 0) {
-				res.status(404).send({
-					message: 'Task Not Found',
-					data: []
-				});
-			} else {
-				res.status(200).send({
-					message: 'Task Deleted',
-				})
-			}
-		}
+			res.status(200).send({
+				message: 'Task Deleted',
+			})
+		}	
 	})
 });
 

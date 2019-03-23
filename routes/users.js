@@ -1,7 +1,6 @@
 var express = require('express'),
 	router = express.Router(),
 	users = require('../models/userSchema');
-mongoose = require('mongoose');
 
 router.get('/', function(req, res) {
 	var where  = req.query.where ? JSON.parse(req.query.where) : {},
@@ -10,8 +9,14 @@ router.get('/', function(req, res) {
 		skip   = req.query.skip ? JSON.parseInt(req.query.skip) : 0;
 
 	var query  = users.find({}).where(where).sort(sort).select(select).skip(skip);
-		query  = req.query.limit ? query.limit(parseInt(req.query.limit)) : query;
-		query  = req.query.count === 'true' ? query.count() : query;
+	
+	if(req.query.limit) {
+		query = query.limit(parseInt(req.query.limit));
+	}	
+
+	if(req.query.count === 'true') {
+		query = query.count();
+	}
 
 		// console.log(query);
 	query.exec({}, (err, res_users) => {
@@ -20,12 +25,13 @@ router.get('/', function(req, res) {
 				message: 'Server Error',
 				data: []
 			});
-		} else {
-			res.status(200).send({
-				message: 'OK',
-				data: res_users,
-			})
-		}
+			return;
+		} 
+		res.status(200).send({
+			message: 'OK',
+			data: res_users,
+		})
+		
 	})
 });
 
@@ -36,112 +42,118 @@ router.post('/', function (req, res) {
 				message: err,
 				data: []
 			});
-		} else {
-			res.status(201).send({
-				message: 'OK',
-				data: newUser,
-			})
+			return;
 		}
+		res.status(201).send({
+			message: 'OK',
+			data: newUser,
+		})
+		
     })
 });
 
 router.get('/:id', function(req, res) {
-	users.findOne({_id: req.params.id}).exec(function(err, user) {
+	users.findOne({_id: req.params.id}, function(err, user) {
 		if(err) {
 			res.status(500).send({
 				message: err,
 				data: []
 			});
-		} else {
-			if(!user) {
-				res.status(404).send({
-					message: 'User Not Found',
-					data: []
-				});
-			} else {
-				res.status(200).send({
-					message: 'OK',
-					data: user
-				})
-			}
-		}
+			return;
+		} 
+		if(!user) {
+			res.status(404).send({
+				message: 'User Not Found',
+				data: []
+			});
+			return;
+		} 
+		res.status(200).send({
+			message: 'OK',
+			data: user
+		})
+		
+		
 	})
 });
 
 router.put('/:id', function(req, res) {
-	users.findOne({_id: req.params.id}).exec((err, res_users) => {
+	users.findOne({_id: req.params.id}, (err, res_users) => {
 		if(err) {
 			res.status(500).send({
 				message: err,
 				data: {}
 			});
-		} else {
-			if(!res_users) {
-				res.status(404).send({
-					message: 'User Not Found',
-					data: []
-				});
-			} else {
-				users.findOne({email: req.body.email}).exec((err, res_user) => {
-					// console.log(res_user._id);
-					// console.log(req.params.id);
-					if(err) {
-			            res.status(500).send({
-			                message: err,
-			                data: {}
-			            });
-			            return;
-			        }
-			        // console.log(res_user.length);
-			        if(res_user){
-						if(res_user._id != req.params.id) {
-							res.status(400).send({
-								message: 'Email already exists',
-								data: {}
-						});
-						return;
-					} 
-				} 
-					console.log(req.body);
-					users.findOneAndUpdate({_id: req.params.id}, {$set: req.body}, {new: true}, (err, user) => {
-						if(err) {
-							res.status(500).send({
-								message: err,
-								data: {}
-							});
-						} else {
-							res.status(200).send({
-								message: 'User Information Updated',
-								data: user
-							});
-						}
-					})
-					
-				})
-			}
+			return;
+		} 
+		if(!res_users) {
+			res.status(404).send({
+				message: 'User Not Found',
+				data: []
+			});
+			return;
 		}
+		users.findOne({email: req.body.email}, (err, res_user) => {
+			// console.log(res_user._id);
+			// console.log(req.params.id);
+			if(err) {
+	            res.status(500).send({
+	                message: err,
+	                data: {}
+	            });
+	            return;
+	        }
+	        // console.log(res_user.length);
+	        if(res_user){
+				if(res_user._id != req.params.id) {
+					res.status(400).send({
+						message: 'Email already exists',
+						data: {}
+				});
+				return;
+			} 
+		} 
+			console.log(req.body);
+			users.findOneAndUpdate({_id: req.params.id}, {$set: req.body}, {new: true}, (err, user) => {
+				if(err) {
+					res.status(500).send({
+						message: err,
+						data: {}
+					});
+					return;
+				}  
+				res.status(200).send({
+					message: 'User Updated',
+					data: user
+				});
+				
+			})
+			
+		})
+		
+		
 	})
 });
 
 router.delete('/:id', function(req, res) {
-	users.deleteOne({_id: req.params.id}).exec(function(err, user) {
+	users.deleteOne({_id: req.params.id}, function(err, user) {
 		if(err) {
 			res.status(500).send({
 				message: err,
 				data: []
 			});
-		} else {
-			if(user.n === 0) {
-				res.status(404).send({
-					message: 'User Not Found',
-					data: []
-				});
-			} else {
-				res.status(200).send({
-					message: 'User Deleted',
-				})
-			}
+			return;
 		}
+		if(user.n === 0) {
+			res.status(404).send({
+				message: 'User Not Found',
+				data: []
+			});
+			return;
+		} 
+		res.status(200).send({
+			message: 'User Deleted',
+		})
 	})
 });
 
